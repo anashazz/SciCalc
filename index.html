@@ -119,9 +119,6 @@
                 <button id="signOutBtn" class="py-2 px-3 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition calc-button" aria-label="Sign Out">
                     Sign Out
                 </button>
-                <a href="https://github.com/anashazz/SciCalc/" target="_blank" rel="noopener noreferrer" class="py-2 px-4 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-300 transition calc-button" aria-label="View on GitHub">
-                    GitHub
-                </button>
                 <a href="https://anashazz.github.io/SciCalc/README.md" target="_blank" rel="noopener noreferrer" class="py-2 px-4 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-300 transition calc-button" aria-label="View on GitHub">
                     About
                 </a>
@@ -228,9 +225,8 @@
             createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables provided by the Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'scicalc';
         
         // --- MOCK FIREBASE CONFIGURATION (Updated mock API Key) ---
         const MOCK_FIREBASE_CONFIG = {
