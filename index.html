@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SciCalc - AI & Classic Calculator</title>
+    
+<script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 1. ADD RECAPTCHA SCRIPT HERE -->
+    <!-- The 'onload' callback is not strictly necessary for v2 checkbox but good practice -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f9;
+        }
+        /* Custom styles for the calculator grid and input */
+        .calc-button {
+            transition: all 0.1s;
+            box-shadow: 0 4px #c2c9d1; /* Soft shadow */
+        }
+        .calc-button:active {
+            box-shadow: 0 1px #a3adb7;
+            transform: translateY(3px);
+        }
+        .operator-btn {
+            background-color: #ff9500;
+            color: white;
+            box-shadow: 0 4px #cc7900;
+        }
+        .operator-btn:active {
+            box-shadow: 0 1px #804d00;
+        }
+        .dark-btn {
+            background-color: #505050;
+            color: white;
+            box-shadow: 0 4px #404040;
+        }
+        .dark-btn:active {
+            box-shadow: 0 1px #303030;
+        }
+        /* Tab specific styling */
+        .tab-button.active {
+            border-bottom: 3px solid #0ea5e9; /* sky-500 */
+            color: #0ea5e9;
+            font-weight: 600;
+        }
+
+        /* --- Custom Scrollbar Styles --- */
+        #main-app-container::-webkit-scrollbar {
+            width: 8px;
+            background-color: #f1f5f9; /* gray-100 track */
+        }
+
+        #main-app-container::-webkit-scrollbar-thumb {
+            background-color: #94a3b8; /* slate-400 thumb */
+            border-radius: 4px;
+        }
+
+        #main-app-container::-webkit-scrollbar-thumb:hover {
+            background-color: #64748b; /* slate-500 on hover */
+        }
+        /* --- End Custom Scrollbar Styles --- */
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen w-screen p-0 m-0">
+
+    <!-- Authentication Screen (Initial View) -->
+    <div id="auth-screen" class="w-full max-w-sm p-6 md:p-8 bg-white rounded-none md:rounded-3xl shadow-none md:shadow-2xl">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">SciCalc Login</h1>
+        
+        <form id="auth-form" class="space-y-4">
+            <div>
+                <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                <input type="email" id="auth-email" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500" required placeholder="name@example.com">
+            </div>
+            
+            <div>
+                <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="auth-password" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500" required placeholder="********">
+            </div>
+            
+            <!-- 2. ADD RECAPTCHA WIDGET CONTAINER -->
+            <div class="flex justify-center pt-2">
+                <!-- Site key updated with the user-provided key. -->
+                <div id="recaptcha-widget" class="g-recaptcha" data-sitekey="6Le2jP4rAAAAAH8ZxHjb5BbvWyNi0TrfKu4ivTxY"></div>
+            </div>
+
+            <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition calc-button mt-4">
+                Sign In
+            </button>
+            
+            <p id="auth-error-message" class="text-sm text-red-500 text-center"></p>
+        </form>
+
+        <div class="mt-4 text-center">
+            <button id="toggle-auth-mode" class="text-sm text-sky-600 hover:text-sky-800 transition">
+                Need an account? Sign Up
+            </button>
+        </div>
+        
+        <!-- Placeholder for system status -->
+        <p id="auth-system-status" class="text-xs text-gray-500 mt-6 text-center"></p>
+    </div>
+
+
+    <!-- Main Application Container (Hidden until authenticated) -->
+    <div id="main-app-container" class="hidden w-full h-full bg-white rounded-none md:rounded-3xl shadow-none md:shadow-2xl p-6 md:p-8 border-none md:border border-gray-100 overflow-y-auto">
+        
+        <!-- FLEX CONTAINER FOR TITLE AND ACTIONS -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">SciCalc</h1>
+            <div class="flex items-center space-x-3">
+                <span id="auth-status-display" class="text-sm text-gray-600 truncate max-w-[100px] md:max-w-none"></span>
+                <button id="signOutBtn" class="py-2 px-3 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition calc-button" aria-label="Sign Out">
+                    Sign Out
+                </button>
+                <a href="https://github.com/anashazz/SciCalc/" target="_blank" rel="noopener noreferrer" class="py-2 px-4 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-300 transition calc-button" aria-label="View on GitHub">
+                    GitHub
+                </a>
+            </div>
+        </div>
+        
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-200 mb-6 sticky top-0 bg-white z-10">
+            <button id="tab-calculator-btn" data-tab="calculator" class="tab-button active flex-1 py-3 px-1 text-center text-gray-600 transition duration-150 ease-in-out hover:text-sky-500">
+                Calculator
+            </button>
+            <button id="tab-ai-btn" data-tab="ai-tools" class="tab-button flex-1 py-3 px-1 text-center text-gray-600 transition duration-150 ease-in-out hover:text-sky-500">
+                AI Tools
+            </button>
+        </div>
+
+        <!-- Tab Content: Calculator -->
+        <div id="tab-calculator" class="tab-content">
+            <div id="classic-section" class="mb-4">
+                <div id="display" class="bg-gray-800 text-white p-4 text-right rounded-xl mb-4 h-24 flex flex-col justify-end shadow-md">
+                    <div id="history" class="text-sm text-gray-400 min-h-[1.25rem] truncate"></div>
+                    <div id="currentValue" class="text-5xl font-light truncate">0</div>
+                </div>
+
+                <!-- Classic Keypad Grid -->
+                <div class="grid grid-cols-4 gap-3">
+                    <!-- Row 1 -->
+                    <button class="dark-btn calc-button p-4 text-2xl rounded-full" data-action="clear">AC</button>
+                    <button class="dark-btn calc-button p-4 text-2xl rounded-full" data-action="sign">+/-</button>
+                    <button class="dark-btn calc-button p-4 text-2xl rounded-full" data-action="percent">%</button>
+                    <button class="operator-btn calc-button p-4 text-2xl rounded-full" data-op="divide">/</button>
+
+                    <!-- Row 2 -->
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="7">7</button>
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="8">8</button>
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="9">9</button>
+                    <button class="operator-btn calc-button p-4 text-2xl rounded-full" data-op="multiply">x</button>
+
+                    <!-- Row 3 -->
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="4">4</button>
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="5">5</button>
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="6">6</button>
+                    <button class="operator-btn calc-button p-4 text-2xl rounded-full" data-op="subtract">-</button>
+
+                    <!-- Row 4 -->
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="1">1</button>
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="2">2</button>
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num="3">3</button>
+                    <button class="operator-btn calc-button p-4 text-2xl rounded-full" data-op="add">+</button>
+
+                    <!-- Row 5 -->
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full col-span-2" data-num="0">0</button>
+                    <button class="bg-gray-300 text-gray-800 calc-button p-4 text-2xl rounded-full" data-num=".">.</button>
+                    <button class="operator-btn calc-button p-4 text-2xl rounded-full" data-action="equals">=</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: AI Tools -->
+        <div id="tab-ai-tools" class="tab-content hidden">
+            
+            <!-- AI Query Area (Text Solve) -->
+            <div id="ai-section" class="mb-6 p-4 bg-gray-50 rounded-xl shadow-inner border border-gray-200">
+                <label for="aiQuery" class="block text-sm font-medium text-gray-700 mb-2">AI Query (Text or Complex Math)</label>
+                <textarea id="aiQuery" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 resize-none text-gray-800" placeholder="e.g., 'What is the integral of x^2?' or 'log(100) + sin(90)'"></textarea>
+                
+                <div class="grid grid-cols-2 gap-3 mt-3">
+                    <button id="aiSolveBtn" class="py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition calc-button" aria-label="Solve with AI">
+                        <span id="aiButtonText">Solve with AI (Text)</span>
+                    </button>
+                    
+                    <!-- Image Scan Controls -->
+                    <input type="file" id="imageUpload" accept="image/*" class="hidden">
+                    <button id="aiScanBtn" class="py-3 bg-violet-600 text-white font-semibold rounded-lg hover:bg-violet-700 transition calc-button" aria-label="Scan image and solve problems">
+                        <span id="scanButtonText">Scan & Solve (Image)</span>
+                    </button>
+                </div>
+                <!-- Cleaned up status message -->
+                <p id="api-status" class="text-xs text-gray-500 mt-3 text-center">
+                    Using Gemini 2.5 Flash for calculations and analysis. 
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal for API Response (Custom Alert) -->
+    <div id="apiModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100">
+            <h3 class="text-xl font-bold mb-3 text-sky-700">AI Result</h3>
+            <p id="modalResultText" class="text-gray-800 mb-4 break-words"></p>
+            <button id="modalCloseBtn" class="w-full py-2 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // --- FIREBASE IMPORTS (Standard Boilerplate) ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, onAuthStateChanged,
+            createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // --- MOCK FIREBASE CONFIGURATION (Updated mock API Key) ---
+        const MOCK_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCHQxfeg-fkpcBeDCypOruUMeYD5asc61k",
+            authDomain: "scicalc.firebaseapp.com",
+            projectId: "scicalc741",
+            storageBucket: "scicalc.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890"
+        };
+        
+        // Determine if we are using the real environment config or the mock
+        const isMockConfig = typeof __firebase_config === 'undefined' || __firebase_config === null;
+
+        const firebaseConfig = isMockConfig 
+            ? MOCK_FIREBASE_CONFIG 
+            : JSON.parse(__firebase_config);
+        
+        // Firebase initialization
+        let db = null;
+        let auth = null;
+        let userId = null;
+
+        const authScreen = document.getElementById('auth-screen');
+        const mainAppContainer = document.getElementById('main-app-container');
+        const authStatusDisplay = document.getElementById('auth-status-display');
+        const signOutBtn = document.getElementById('signOutBtn');
+        
+        // Auth Form Elements
+        const authForm = document.getElementById('auth-form');
+        const authEmailInput = document.getElementById('auth-email');
+        const authPasswordInput = document.getElementById('auth-password');
+        const authSubmitBtn = document.getElementById('auth-submit-btn');
+        const authErrorMessage = document.getElementById('auth-error-message');
+        const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
+        
+        let isSignInMode = true; // State for Sign In vs Sign Up
+
+        // Initialize Firebase
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            setLogLevel('Debug');
+            
+            // --- AUTHENTICATION STATE LISTENER ---
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // User is signed in
+                    userId = user.uid;
+                    console.log("User is signed in. ID:", userId);
+                    authScreen.classList.add('hidden');
+                    mainAppContainer.classList.remove('hidden');
+                    // Display truncated User ID
+                    authStatusDisplay.textContent = `User: ${userId.substring(0, 8)}...`; 
+                } else {
+                    // No user is signed in
+                    userId = null;
+                    console.log("No user is signed in. Requiring Email/Password login.");
+                    authScreen.classList.remove('hidden');
+                    mainAppContainer.classList.add('hidden');
+                }
+            });
+
+        } catch (e) {
+            console.error("Firebase initialization failed:", e);
+            // Display error on auth screen if Firebase completely fails
+            authErrorMessage.textContent = "Firebase initialization failed. Check console for details.";
+            authScreen.classList.remove('hidden');
+            mainAppContainer.classList.add('hidden');
+        }
+
+        // --- AUTH FORM HANDLERS (UPDATED FOR RECAPTCHA) ---
+
+        toggleAuthModeBtn.addEventListener('click', () => {
+            isSignInMode = !isSignInMode;
+            authErrorMessage.textContent = ''; // Clear error message
+            // Reset reCAPTCHA on mode switch to force a fresh check
+            if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.reset === 'function') {
+                grecaptcha.reset();
+            }
+
+            if (isSignInMode) {
+                authSubmitBtn.textContent = 'Sign In';
+                toggleAuthModeBtn.textContent = 'Need an account? Sign Up';
+            } else {
+                authSubmitBtn.textContent = 'Sign Up';
+                toggleAuthModeBtn.textContent = 'Already have an account? Sign In';
+            }
+        });
+        
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            authErrorMessage.textContent = ''; // Clear previous error
+            
+            const email = authEmailInput.value;
+            const password = authPasswordInput.value;
+            
+            if (password.length < 6) {
+                authErrorMessage.textContent = "Password must be at least 6 characters long.";
+                return;
+            }
+
+            // --- 3. RECAPTCHA CHECK BEFORE FIREBASE CALL ---
+            if (typeof grecaptcha === 'undefined') {
+                authErrorMessage.textContent = "reCAPTCHA failed to load. Please try refreshing.";
+                return;
+            }
+
+            const recaptchaResponse = grecaptcha.getResponse();
+
+            if (!recaptchaResponse) {
+                authErrorMessage.textContent = "Please complete the 'I'm not a robot' reCAPTCHA challenge.";
+                return;
+            }
+            // --- END RECAPTCHA CHECK ---
+
+
+            authSubmitBtn.disabled = true;
+            authSubmitBtn.textContent = isSignInMode ? 'Signing In...' : 'Registering...';
+
+            try {
+                if (isSignInMode) {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } else {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                }
+                // onAuthStateChanged handles UI update on success
+            } catch (error) {
+                console.error("Auth Error:", error.code, error.message);
+                let displayMessage = "An unexpected error occurred.";
+                
+                // Friendly error mapping (Firebase Auth error codes)
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                    case 'auth/wrong-password':
+                        displayMessage = 'Invalid email or password.';
+                        break;
+                    case 'auth/email-already-in-use':
+                        displayMessage = 'This email is already registered. Try signing in.';
+                        break;
+                    case 'auth/invalid-email':
+                        displayMessage = 'The email address is not valid.';
+                        break;
+                    default:
+                        displayMessage = 'Authentication failed. Please try again.';
+                }
+                authErrorMessage.textContent = displayMessage;
+
+            } finally {
+                authSubmitBtn.disabled = false;
+                authSubmitBtn.textContent = isSignInMode ? 'Sign In' : 'Sign Up';
+                // Reset reCAPTCHA regardless of success/failure
+                if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.reset === 'function') {
+                    grecaptcha.reset();
+                }
+            }
+        });
+
+        signOutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                // onAuthStateChanged handles UI switch
+            } catch (error) {
+                console.error("Sign Out Error:", error);
+                // Optional: show a message if sign out fails
+            }
+        });
+
+        // --- TAB SWITCHING LOGIC (REST OF THE APP REMAINS UNCHANGED) ---
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        /**
+         * Switches the active tab view.
+         * @param {string} tabId The ID of the content div to show (e.g., 'calculator', 'ai-tools')
+         */
+        function switchTab(tabId) {
+            // Hide all contents and remove 'active' class from all buttons
+            tabContents.forEach(content => content.classList.add('hidden'));
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+
+            // Show the selected content
+            const selectedContent = document.getElementById(`tab-${tabId}`);
+            if (selectedContent) {
+                selectedContent.classList.remove('hidden');
+            }
+
+            // Set the active button style
+            const selectedButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+            if (selectedButton) {
+                selectedButton.classList.add('active');
+            }
+        }
+
+        // Attach event listeners to tab buttons
+        tabButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const tabId = e.target.dataset.tab;
+                switchTab(tabId);
+            });
+        });
+
+        // --- AI CALCULATION & SCAN LOGIC (CLEANED) ---
+
+        const aiQueryInput = document.getElementById('aiQuery');
+        const aiSolveBtn = document.getElementById('aiSolveBtn');
+        const aiButtonText = document.getElementById('aiButtonText');
+        
+        const aiScanBtn = document.getElementById('aiScanBtn');
+        const imageUpload = document.getElementById('imageUpload');
+        const scanButtonText = document.getElementById('scanButtonText');
+        
+        const DEFAULT_MODEL = "gemini-2.5-flash-preview-09-2025"; 
+
+        const apiModal = document.getElementById('apiModal');
+        const modalResultText = document.getElementById('modalResultText');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+        
+        // IMPORTANT: API_KEY must be an empty string for the Canvas environment to inject the real key.
+        const API_KEY = "AIzaSyBRx5-LLvPj_irS03pzLxMnI0Li0Gaw3-4"; 
+
+        /**
+         * Converts the loading state for either button.
+         * @param {boolean} isLoading 
+         * @param {string} buttonId The ID of the button being loaded ('aiSolveBtn' or 'aiScanBtn')
+         */
+        function setLoading(isLoading, buttonId) {
+            const button = document.getElementById(buttonId);
+            const buttonSpan = buttonId === 'aiSolveBtn' ? aiButtonText : scanButtonText;
+            
+            // Disable all interactive elements during API call
+            aiSolveBtn.disabled = isLoading;
+            aiScanBtn.disabled = isLoading;
+
+            if (isLoading) {
+                buttonSpan.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    ${buttonId === 'aiSolveBtn' ? 'Calculating...' : 'Scanning...'}
+                `;
+            } else {
+                aiButtonText.textContent = 'Solve with AI (Text)';
+                scanButtonText.textContent = 'Scan & Solve (Image)';
+            }
+        }
+
+        /**
+         * Retries the fetch request with exponential backoff.
+         * @param {string} modelId The ID of the Gemini model to use.
+         */
+        async function fetchWithRetry(modelId, options, retries = 3) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=`;
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url + API_KEY, options);
+                    
+                    if (response.status !== 429) { // Not a Rate Limit error
+                        return response;
+                    }
+                    if (i < retries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                } catch (error) {
+                    if (i < retries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+            throw new Error('All retries failed due to rate limiting or connection issues.');
+        }
+
+        // Utility to convert file to Base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function solveWithAI() {
+            const query = aiQueryInput.value.trim();
+            if (!query) {
+                displayModal('Please enter a math problem or equation.');
+                return;
+            }
+
+            setLoading(true, 'aiSolveBtn');
+            const modelId = DEFAULT_MODEL;
+
+            // System prompt for text-based calculation
+            const systemPrompt = "You are a highly specialized mathematical assistant. Your primary function is to solve the mathematical or scientific problem provided by the user. If the input is a valid calculation, respond ONLY with the final, concise answer or explanation. Do not use conversational preambles like 'The answer is...'. If the input is unclear, incomplete, or contains a mathematical error (like division by zero or unbalanced parentheses), politely explain the error and provide a helpful suggestion on how to correct the query.";
+
+            const payload = {
+                contents: [{ parts: [{ text: query }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                }
+            };
+
+            try {
+                const response = await fetchWithRetry(modelId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Error: Could not retrieve a valid response.";
+                
+                displayModal(text);
+
+            } catch (error) {
+                console.error("Gemini API Error (Text Solve):", error);
+                displayModal("An error occurred while connecting to the AI for text solving. Please check your network.");
+            } finally {
+                setLoading(false, 'aiSolveBtn');
+            }
+        }
+
+        async function scanAndSolve() {
+            const file = imageUpload.files[0];
+
+            if (!file) {
+                return; 
+            }
+
+            setLoading(true, 'aiScanBtn');
+            const modelId = DEFAULT_MODEL;
+
+            try {
+                const base64ImageData = await fileToBase64(file);
+                const mimeType = file.type;
+
+                const userPrompt = "Solve the mathematical problem(s) visible in this image. Provide the step-by-step solution followed by the final answer(s) clearly formatted using standard mathematical notation. If multiple problems exist, list the solution for each one.";
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: userPrompt },
+                            {
+                                inlineData: {
+                                    mimeType: mimeType,
+                                    data: base64ImageData
+                                }
+                            }
+                        ]
+                    }]
+                };
+
+                const response = await fetchWithRetry(modelId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Error: Could not retrieve a valid answer from the image scan.";
+                
+                displayModal(text);
+
+            } catch (error) {
+                console.error("Multimodal API Error or file conversion failed:", error);
+                displayModal("An error occurred during image processing. Please ensure the file is a valid image and try again.");
+            } finally {
+                setLoading(false, 'aiScanBtn');
+                imageUpload.value = ''; // Clear file input after use
+            }
+        }
+
+        function displayModal(message) {
+            modalResultText.textContent = message;
+            apiModal.classList.remove('hidden');
+            apiModal.classList.add('flex');
+        }
+
+        function closeModal() {
+            apiModal.classList.add('hidden');
+            apiModal.classList.remove('flex');
+        }
+
+        // Event listeners for AI section
+        aiSolveBtn.addEventListener('click', solveWithAI);
+        modalCloseBtn.addEventListener('click', closeModal);
+        apiModal.addEventListener('click', (e) => { 
+            if (e.target === apiModal) {
+                closeModal();
+            }
+        });
+
+        // New event listeners for Image Scan
+        aiScanBtn.addEventListener('click', () => {
+            imageUpload.click();
+        });
+
+        imageUpload.addEventListener('change', scanAndSolve);
+
+
+        // --- CLASSIC CALCULATOR LOGIC (UNCHANGED) ---
+
+        const displayValue = document.getElementById('currentValue');
+        const historyDisplay = document.getElementById('history');
+        const buttons = document.querySelectorAll('.grid button');
+
+        let currentInput = '0';
+        let firstOperand = null;
+        let operator = null;
+        let waitingForSecondOperand = false;
+        let lastAction = null;
+
+        function updateDisplay() {
+            // Prevent display overflow for very large numbers
+            if (currentInput.length > 15) {
+                displayValue.textContent = parseFloat(currentInput).toPrecision(10);
+            } else {
+                displayValue.textContent = currentInput;
+            }
+            
+            historyDisplay.textContent = firstOperand !== null ? `${firstOperand} ${operator || ''}` : '';
+        }
+
+        function inputDigit(digit) {
+            if (waitingForSecondOperand === true) {
+                currentInput = digit;
+                waitingForSecondOperand = false;
+            } else {
+                currentInput = currentInput === '0' ? digit : currentInput + digit;
+            }
+            lastAction = 'number';
+        }
+
+        function inputDecimal(dot) {
+            if (waitingForSecondOperand === true) {
+                currentInput = '0.';
+                waitingForSecondOperand = false;
+                return;
+            }
+            if (!currentInput.includes(dot)) {
+                currentInput += dot;
+            }
+            lastAction = 'number';
+        }
+
+        function handleOperator(nextOperator) {
+            const inputValue = parseFloat(currentInput);
+
+            if (operator && waitingForSecondOperand) {
+                operator = nextOperator;
+                lastAction = 'operator';
+                return;
+            }
+
+            if (firstOperand === null) {
+                firstOperand = inputValue;
+            } else if (lastAction === 'number') {
+                const result = performCalculation[operator](firstOperand, inputValue);
+                currentInput = String(result);
+                firstOperand = result;
+            }
+
+            waitingForSecondOperand = true;
+            operator = nextOperator;
+            lastAction = 'operator';
+        }
+
+        function resetCalculator() {
+            currentInput = '0';
+            firstOperand = null;
+            operator = null;
+            waitingForSecondOperand = false;
+            lastAction = null;
+        }
+
+        function calculateEquals() {
+            const inputValue = parseFloat(currentInput);
+
+            if (firstOperand === null || operator === null) {
+                return;
+            }
+
+            let secondOperand;
+            if (lastAction !== 'equals') {
+                // Store the second operand and operator for repeated equals calls
+                performCalculation.secondOperand = inputValue;
+                performCalculation.operator = operator;
+                secondOperand = inputValue;
+            } else {
+                secondOperand = performCalculation.secondOperand;
+            }
+
+            // Handle division by zero check
+            if (operator === '/' && secondOperand === 0) {
+                 currentInput = 'Error';
+                 firstOperand = null;
+                 operator = null;
+                 waitingForSecondOperand = true;
+                 lastAction = null;
+                 return;
+            }
+
+            const result = performCalculation[operator](firstOperand, secondOperand);
+            
+            currentInput = String(result);
+            firstOperand = result;
+            waitingForSecondOperand = true;
+            lastAction = 'equals';
+        }
+
+        const performCalculation = {
+            '/': (first, second) => first / second,
+            'x': (first, second) => first * second,
+            'z': (first, second) => first * second, // Legacy fix for 'x'
+            '+': (first, second) => first + second,
+            '-': (first, second) => first - second,
+            'secondOperand': null,
+            'operator': null
+        };
+
+        function handleMiscAction(action) {
+            const inputValue = parseFloat(currentInput);
+            switch (action) {
+                case 'clear':
+                    resetCalculator();
+                    break;
+                case 'sign':
+                    currentInput = String(inputValue * -1);
+                    break;
+                case 'percent':
+                    if (firstOperand !== null && !waitingForSecondOperand) {
+                        // Apply percent for operations like 100 + 10% (10% of 100)
+                        currentInput = String(firstOperand * (inputValue / 100));
+                    } else {
+                        // Simple percent (e.g., 50 -> 0.5)
+                        currentInput = String(inputValue / 100);
+                    }
+                    break;
+                case 'equals':
+                    calculateEquals();
+                    break;
+            }
+            lastAction = action;
+        }
+
+
+        // Universal event listener for all calculator buttons
+        buttons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                const { num, op, action } = event.target.dataset;
+
+                if (num) {
+                    inputDigit(num);
+                } else if (op) {
+                    const operatorMap = {
+                        'add': '+',
+                        'subtract': '-',
+                        'multiply': 'x',
+                        'divide': '/'
+                    };
+                    handleOperator(operatorMap[op]);
+                } else if (action) {
+                    if (action === 'equals') {
+                        calculateEquals();
+                    } else if (action === '.') {
+                        inputDecimal('.');
+                    } else {
+                        handleMiscAction(action);
+                    }
+                }
+                updateDisplay();
+            });
+        });
+
+        // Initial display update
+        updateDisplay();
+
+    </script>
+</body>
+</html>
+
